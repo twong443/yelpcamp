@@ -5,13 +5,30 @@ var middleware = require("../middleware");
 
 //INDEX - SHOW ALL CAMPGROUNDS
 router.get("/", function(req, res){
-	Campground.find({}, function(err, allCampgrounds){
-		if(err){
-			console.log(err);
-		} else{
-			res.render("campgrounds/index", {campgrounds:allCampgrounds, page: 'campgrounds'});			
-		}
-	});
+	var noMatch = null;
+	//"Fuzzy" search with MongoDB
+	if(req.query.search){
+		const regex = new RegExp(escapeRegex(req.query.search), 'gi');
+		Campground.find({name: regex}, function(err, allCampgrounds){
+			if(err){
+				console.log(err);
+			} else{
+				if(allCampgrounds.length < 1){
+					noMatch = "No campgrounds match that query, please try again.";
+				}
+				res.render("campgrounds/index", {campgrounds:allCampgrounds, noMatch:noMatch, page: 'campgrounds'});		
+			}
+		});
+	} else {
+		//GET ALL CAMPGROUNDS FROM DB
+		Campground.find({}, function(err, allCampgrounds){
+			if(err){
+				console.log(err);
+			} else{
+				res.render("campgrounds/index", {campgrounds:allCampgrounds, noMatch:noMatch, page: 'campgrounds'});			
+			}
+		});
+	}
 });
 
 //CREATE - CREATE NEW CAMPGROUND
@@ -81,5 +98,9 @@ router.delete("/:id", middleware.checkCampgroundOwnership, function(req, res){
         }
     });
 });
+
+function escapeRegex(text) {
+	return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+};
 
 module.exports = router;
